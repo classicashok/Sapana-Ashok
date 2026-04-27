@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Ultimate Drive Gallery (API Powered)</title>
+<title>Ultimate Drive Gallery (Fixed)</title>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;600&display=swap" rel="stylesheet">
 <script src="https://apis.google.com/js/api.js"></script>
 <style>
@@ -25,7 +25,7 @@ input {width:100%;padding:5px;border-radius:10px;border:none;margin-top:5px;}
 </head>
 <body>
 
-<header>🚀 API Drive Gallery</header>
+<header>🚀 API Drive Gallery (Fixed)</header>
 <div class="toggle" onclick="toggleTheme()">🌙/☀️</div>
 
 <div class="story-bar" id="stories"></div>
@@ -34,8 +34,7 @@ input {width:100%;padding:5px;border-radius:10px;border:none;margin-top:5px;}
 <audio id="clickSound" src="https://www.soundjay.com/buttons/sounds/button-16.mp3"></audio>
 
 <script>
-// 🔑 CONFIGURE THIS
-const API_KEY = 'AIzaSyD_ToineiqPRdonnu-Gu1IsKwLLQ8hpst8';
+const API_KEY = 'PASTE_YOUR_NEW_API_KEY_HERE';
 const FOLDER_ID = '1xag3sSGYi0avsmL0xhl0zpLB9AVK6F56';
 
 const gallery = document.getElementById('gallery');
@@ -66,7 +65,6 @@ function displayFiles(files){
 
     if(!isVideo && !isImage) return;
 
-    // story
     const story = document.createElement('div');
     story.className='story';
     story.innerText='▶';
@@ -78,10 +76,10 @@ function displayFiles(files){
     let media;
     if(isImage){
       media=document.createElement('img');
-      media.src=`https://drive.google.com/uc?id=${file.id}`;
+      media.src = `https://drive.google.com/thumbnail?id=${file.id}&sz=w1000`;
     } else {
       media=document.createElement('video');
-      media.src=`https://drive.google.com/uc?id=${file.id}`;
+      media.src = `https://drive.google.com/uc?export=download&id=${file.id}`;
       media.controls=true;
     }
 
@@ -128,7 +126,6 @@ function displayFiles(files){
 
 function toggleTheme(){ document.body.classList.toggle('light'); }
 
-// Load API
 gapi.load('client', init);
 </script>
 
