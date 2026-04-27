@@ -2,100 +2,102 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Sapana❤️Ashok</title>
+<title>Sapana and Ashok</title>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
 <script src="https://apis.google.com/js/api.js"></script>
 <style>
-body {margin:0;font-family:'Poppins',sans-serif;background:#0f172a;color:white;transition:0.3s;}
-body.light {background:#f1f5f9;color:#111;}
-header {text-align:center;padding:20px;font-size:2em;}
-.toggle {position:fixed;top:10px;right:20px;cursor:pointer;}
-.gallery {display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px;padding:20px;}
-.card {background:rgba(255,255,255,0.05);border-radius:20px;overflow:hidden;backdrop-filter:blur(10px);transition:0.3s;}
-.card:hover {transform:scale(1.05);} 
-img,iframe {width:100%;height:200px;border:none;object-fit:cover;}
-.actions {padding:10px;}
-button {padding:6px 10px;border:none;border-radius:10px;cursor:pointer;}
-.like-btn {background:#ef4444;color:white;}
-input {width:100%;padding:5px;border-radius:10px;border:none;margin-top:5px;}
-.comments {font-size:0.8em;margin-top:5px;}
-.story-bar {display:flex;overflow-x:auto;padding:10px;gap:10px;}
-.story {min-width:80px;height:80px;border-radius:50%;background:linear-gradient(45deg,#f97316,#ec4899);display:flex;align-items:center;justify-content:center;cursor:pointer;}
+body {margin:0;font-family:'Poppins',sans-serif;background:#0f172a;color:white;}
+.reels {height:100vh;overflow-y:scroll;scroll-snap-type:y mandatory;}
+.card {height:100vh;scroll-snap-align:start;display:flex;flex-direction:column;justify-content:center;align-items:center;}
+img,iframe {max-width:90%;max-height:60vh;border-radius:20px;}
+.actions {margin-top:10px;text-align:center;}
+input {padding:8px;border-radius:10px;border:none;width:200px;}
+button {padding:6px 10px;border:none;border-radius:10px;background:#ef4444;color:white;margin:5px;cursor:pointer;}
+.comments {max-height:100px;overflow:auto;font-size:0.8em;}
 </style>
 </head>
 <body>
 
-<header>🚀 Final Drive Gallery</header>
-<div class="toggle" onclick="toggleTheme()">🌙/☀️</div>
-
-<div class="story-bar" id="stories"></div>
-<div class="gallery" id="gallery"></div>
-
-<audio id="clickSound" src="https://www.soundjay.com/buttons/sounds/button-16.mp3"></audio>
+<div class="reels" id="gallery"></div>
 
 <script>
+const SUPABASE_URL = 'https://fwrlzpehvuctzqsguofw.supabase.co/rest/v1/';
+const SUPABASE_KEY = 'sb_publishable_YI4qDk2pW2slwzv6O39Zdw_1EmJL8f2';
 const API_KEY = 'AIzaSyD_ToineiqPRdonnu-Gu1IsKwLLQ8hpst8';
 const FOLDER_ID = '1xag3sSGYi0avsmL0xhl0zpLB9AVK6F56';
 
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const gallery = document.getElementById('gallery');
-const stories = document.getElementById('stories');
-const clickSound = document.getElementById('clickSound');
 
-function playSound(){ clickSound.play(); }
+const username = prompt('Enter your name:') || 'Anonymous';
+
+async function getData(fileId){
+  let { data } = await supabaseClient.from('Marriage').select('*').eq('id', fileId).single();
+  if(!data){
+    await supabaseClient.from('Marriage').insert({id:fileId, likes:0, users:[], comments:[]});
+    return {likes:0, users:[], comments:[]};
+  }
+  return data;
+}
+
+async function updateRealtime(){
+  supabaseClient.channel('realtime')
+    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'Marriage'},payload=>{
+      location.reload();
+    }).subscribe();
+}
 
 function init(){
   gapi.client.setApiKey(API_KEY);
-  return gapi.client.load('https://www.googleapis.com/discovery/v1/apis/drive/v3/rest')
-    .then(loadFiles);
+  return gapi.client.load('https://www.googleapis.com/discovery/v1/apis/drive/v3/rest').then(loadFiles);
 }
 
 function loadFiles(){
   return gapi.client.drive.files.list({
     q: `'${FOLDER_ID}' in parents and trashed=false`,
-    fields: 'files(id, name, mimeType)'
-  }).then(res => {
-    displayFiles(res.result.files);
-  });
+    fields: 'files(id,name,mimeType)'
+  }).then(res=>displayFiles(res.result.files));
 }
 
-function displayFiles(files){
-  files.forEach(file => {
+async function displayFiles(files){
+  for(const file of files){
     const isVideo = file.mimeType.includes('video');
     const isImage = file.mimeType.includes('image');
+    if(!isVideo && !isImage) continue;
 
-    if(!isVideo && !isImage) return;
+    const data = await getData(file.id);
+    let likeCount = data.likes;
+    let users = data.users || [];
+    let commentsList = data.comments || [];
 
-    const story = document.createElement('div');
-    story.className='story';
-    story.innerText='▶';
-    stories.appendChild(story);
-
-    const card=document.createElement('div');
+    const card = document.createElement('div');
     card.className='card';
 
     let media;
-
     if(isImage){
       media=document.createElement('img');
-      media.src = `https://lh3.googleusercontent.com/d/${file.id}=w1000`;
+      media.src=`https://lh3.googleusercontent.com/d/${file.id}=w1000`;
     } else {
       media=document.createElement('iframe');
-      media.src = `https://drive.google.com/file/d/${file.id}/preview`;
-      media.allow = 'autoplay';
+      media.src=`https://drive.google.com/file/d/${file.id}/preview`;
     }
 
     const actions=document.createElement('div');
     actions.className='actions';
 
-    let likeCount=0;
     const likeBtn=document.createElement('button');
-    likeBtn.className='like-btn';
-    likeBtn.innerText='❤️ 0';
+    likeBtn.innerText=`❤️ ${likeCount}`;
 
-    likeBtn.onclick=()=>{
+    likeBtn.onclick=async()=>{
+      if(users.includes(username)){
+        alert('You already liked this');
+        return;
+      }
       likeCount++;
+      users.push(username);
+      await supabaseClient.from('Marriage').update({likes:likeCount, users}).eq('id',file.id);
       likeBtn.innerText=`❤️ ${likeCount}`;
-      playSound();
     };
 
     const input=document.createElement('input');
@@ -104,13 +106,21 @@ function displayFiles(files){
     const comments=document.createElement('div');
     comments.className='comments';
 
-    input.addEventListener('keypress',e=>{
+    function addComment(text){
+      const c=document.createElement('div');
+      c.innerText=text;
+      comments.appendChild(c);
+    }
+
+    commentsList.forEach(c=>addComment(c));
+
+    input.addEventListener('keypress', async (e)=>{
       if(e.key==='Enter' && input.value.trim()){
-        const c=document.createElement('div');
-        c.innerText=input.value;
-        comments.appendChild(c);
+        const text = username + ': ' + input.value;
+        commentsList.push(text);
+        await supabaseClient.from('Marriage').update({comments:commentsList}).eq('id',file.id);
+        addComment(text);
         input.value='';
-        playSound();
       }
     });
 
@@ -120,13 +130,11 @@ function displayFiles(files){
 
     card.appendChild(media);
     card.appendChild(actions);
-
     gallery.appendChild(card);
-  });
+  }
 }
 
-function toggleTheme(){ document.body.classList.toggle('light'); }
-
+updateRealtime();
 gapi.load('client', init);
 </script>
 
