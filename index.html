@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Sapana and Ashok</title>
+<title>Ultimate Social Drive Gallery</title>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
 <script src="https://apis.google.com/js/api.js"></script>
@@ -14,7 +14,7 @@ img,iframe {max-width:90%;max-height:60vh;border-radius:20px;}
 .actions {margin-top:10px;text-align:center;}
 input {padding:8px;border-radius:10px;border:none;width:200px;}
 button {padding:6px 10px;border:none;border-radius:10px;background:#ef4444;color:white;margin:5px;cursor:pointer;}
-.comments {max-height:100px;overflow:auto;font-size:0.8em;}
+.comments {max-height:120px;overflow:auto;font-size:0.85em;width:220px;text-align:left;}
 </style>
 </head>
 <body>
@@ -22,10 +22,14 @@ button {padding:6px 10px;border:none;border-radius:10px;background:#ef4444;color
 <div class="reels" id="gallery"></div>
 
 <script>
+// 🔑 CONFIG
 const SUPABASE_URL = 'https://fwrlzpehvuctzqsguofw.supabase.co/rest/v1/';
 const SUPABASE_KEY = 'sb_publishable_YI4qDk2pW2slwzv6O39Zdw_1EmJL8f2';
 const API_KEY = 'AIzaSyD_ToineiqPRdonnu-Gu1IsKwLLQ8hpst8';
 const FOLDER_ID = '1xag3sSGYi0avsmL0xhl0zpLB9AVK6F56';
+
+// ⚠️ TABLE NAME (LOWERCASE FIX)
+const TABLE = 'marriage';
 
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const gallery = document.getElementById('gallery');
@@ -33,18 +37,31 @@ const gallery = document.getElementById('gallery');
 const username = prompt('Enter your name:') || 'Anonymous';
 
 async function getData(fileId){
-  let { data } = await supabaseClient.from('Marriage').select('*').eq('id', fileId).single();
+  let { data } = await supabaseClient.from(TABLE).select('*').eq('id', fileId).single();
   if(!data){
-    await supabaseClient.from('Marriage').insert({id:fileId, likes:0, users:[], comments:[]});
+    await supabaseClient.from(TABLE).insert({id:fileId, likes:0, users:[], comments:[]});
     return {likes:0, users:[], comments:[]};
   }
   return data;
 }
 
-async function updateRealtime(){
-  supabaseClient.channel('realtime')
-    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'Marriage'},payload=>{
-      location.reload();
+// 🔔 TRUE REALTIME (NO RELOAD)
+function enableRealtime(){
+  supabaseClient.channel('live')
+    .on('postgres_changes',{event:'UPDATE',schema:'public',table:TABLE},payload=>{
+      const updated = payload.new;
+      const card = document.getElementById(updated.id);
+      if(!card) return;
+
+      card.querySelector('.like').innerText = `❤️ ${updated.likes}`;
+
+      const commentsDiv = card.querySelector('.comments');
+      commentsDiv.innerHTML = '';
+      updated.comments.forEach(c=>{
+        const d=document.createElement('div');
+        d.innerText=c;
+        commentsDiv.appendChild(d);
+      });
     }).subscribe();
 }
 
@@ -73,6 +90,7 @@ async function displayFiles(files){
 
     const card = document.createElement('div');
     card.className='card';
+    card.id = file.id;
 
     let media;
     if(isImage){
@@ -87,17 +105,16 @@ async function displayFiles(files){
     actions.className='actions';
 
     const likeBtn=document.createElement('button');
+    likeBtn.className='like';
     likeBtn.innerText=`❤️ ${likeCount}`;
 
     likeBtn.onclick=async()=>{
       if(users.includes(username)){
-        alert('You already liked this');
-        return;
+        alert('Already liked'); return;
       }
       likeCount++;
       users.push(username);
-      await supabaseClient.from('Marriage').update({likes:likeCount, users}).eq('id',file.id);
-      likeBtn.innerText=`❤️ ${likeCount}`;
+      await supabaseClient.from(TABLE).update({likes:likeCount, users}).eq('id',file.id);
     };
 
     const input=document.createElement('input');
@@ -106,20 +123,22 @@ async function displayFiles(files){
     const comments=document.createElement('div');
     comments.className='comments';
 
-    function addComment(text){
-      const c=document.createElement('div');
-      c.innerText=text;
-      comments.appendChild(c);
+    function renderComments(list){
+      comments.innerHTML='';
+      list.forEach(c=>{
+        const d=document.createElement('div');
+        d.innerText=c;
+        comments.appendChild(d);
+      });
     }
 
-    commentsList.forEach(c=>addComment(c));
+    renderComments(commentsList);
 
     input.addEventListener('keypress', async (e)=>{
       if(e.key==='Enter' && input.value.trim()){
         const text = username + ': ' + input.value;
         commentsList.push(text);
-        await supabaseClient.from('Marriage').update({comments:commentsList}).eq('id',file.id);
-        addComment(text);
+        await supabaseClient.from(TABLE).update({comments:commentsList}).eq('id',file.id);
         input.value='';
       }
     });
@@ -134,7 +153,7 @@ async function displayFiles(files){
   }
 }
 
-updateRealtime();
+enableRealtime();
 gapi.load('client', init);
 </script>
 
