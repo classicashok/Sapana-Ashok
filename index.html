@@ -2,19 +2,66 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Ultimate Social Drive Gallery</title>
+<title>TikTok Style Drive Gallery</title>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
 <script src="https://apis.google.com/js/api.js"></script>
 <style>
-body {margin:0;font-family:'Poppins',sans-serif;background:#0f172a;color:white;}
+body {margin:0;font-family:'Poppins',sans-serif;background:black;color:white;overflow:hidden;}
+
 .reels {height:100vh;overflow-y:scroll;scroll-snap-type:y mandatory;}
-.card {height:100vh;scroll-snap-align:start;display:flex;flex-direction:column;justify-content:center;align-items:center;}
-img,iframe {max-width:90%;max-height:60vh;border-radius:20px;}
-.actions {margin-top:10px;text-align:center;}
-input {padding:8px;border-radius:10px;border:none;width:200px;}
-button {padding:6px 10px;border:none;border-radius:10px;background:#ef4444;color:white;margin:5px;cursor:pointer;}
-.comments {max-height:120px;overflow:auto;font-size:0.85em;width:220px;text-align:left;}
+.card {height:100vh;scroll-snap-align:start;position:relative;display:flex;justify-content:center;align-items:center;background:black;}
+
+video, img, iframe {
+  position:absolute;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
+
+.overlay {
+  position:absolute;
+  bottom:20px;
+  left:15px;
+  right:15px;
+  display:flex;
+  justify-content:space-between;
+}
+
+.left {
+  max-width:70%;
+}
+
+.username {
+  font-weight:bold;
+}
+
+.comments {
+  font-size:0.85em;
+  max-height:80px;
+  overflow:auto;
+}
+
+.right {
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:15px;
+}
+
+.icon {
+  font-size:22px;
+  cursor:pointer;
+}
+
+input {
+  width:100%;
+  padding:6px;
+  border:none;
+  border-radius:10px;
+  margin-top:5px;
+}
+
 </style>
 </head>
 <body>
@@ -22,19 +69,17 @@ button {padding:6px 10px;border:none;border-radius:10px;background:#ef4444;color
 <div class="reels" id="gallery"></div>
 
 <script>
-// 🔑 CONFIG
 const SUPABASE_URL = 'https://fwrlzpehvuctzqsguofw.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_YI4qDk2pW2slwzv6O39Zdw_1EmJL8f2';
 const API_KEY = 'AIzaSyD_ToineiqPRdonnu-Gu1IsKwLLQ8hpst8';
 const FOLDER_ID = '1xag3sSGYi0avsmL0xhl0zpLB9AVK6F56';
-
-// ⚠️ TABLE NAME (LOWERCASE FIX)
 const TABLE = 'marriage';
 
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const gallery = document.getElementById('gallery');
 
-const username = prompt('Enter your name:') || 'Anonymous';
+let username = localStorage.getItem('user') || prompt('Enter username');
+localStorage.setItem('user', username);
 
 async function getData(fileId){
   let { data } = await supabaseClient.from(TABLE).select('*').eq('id', fileId).single();
@@ -45,7 +90,6 @@ async function getData(fileId){
   return data;
 }
 
-// 🔔 TRUE REALTIME (NO RELOAD)
 function enableRealtime(){
   supabaseClient.channel('live')
     .on('postgres_changes',{event:'UPDATE',schema:'public',table:TABLE},payload=>{
@@ -53,10 +97,10 @@ function enableRealtime(){
       const card = document.getElementById(updated.id);
       if(!card) return;
 
-      card.querySelector('.like').innerText = `❤️ ${updated.likes}`;
+      card.querySelector('.like-count').innerText = updated.likes;
 
       const commentsDiv = card.querySelector('.comments');
-      commentsDiv.innerHTML = '';
+      commentsDiv.innerHTML='';
       updated.comments.forEach(c=>{
         const d=document.createElement('div');
         d.innerText=c;
@@ -90,7 +134,7 @@ async function displayFiles(files){
 
     const card = document.createElement('div');
     card.className='card';
-    card.id = file.id;
+    card.id=file.id;
 
     let media;
     if(isImage){
@@ -101,54 +145,65 @@ async function displayFiles(files){
       media.src=`https://drive.google.com/file/d/${file.id}/preview`;
     }
 
-    const actions=document.createElement('div');
-    actions.className='actions';
+    const overlay=document.createElement('div');
+    overlay.className='overlay';
 
-    const likeBtn=document.createElement('button');
-    likeBtn.className='like';
-    likeBtn.innerText=`❤️ ${likeCount}`;
+    const left=document.createElement('div');
+    left.className='left';
 
-    likeBtn.onclick=async()=>{
-      if(users.includes(username)){
-        alert('Already liked'); return;
-      }
-      likeCount++;
-      users.push(username);
-      await supabaseClient.from(TABLE).update({likes:likeCount, users}).eq('id',file.id);
-    };
-
-    const input=document.createElement('input');
-    input.placeholder='Comment...';
+    const user=document.createElement('div');
+    user.className='username';
+    user.innerText='@'+username;
 
     const comments=document.createElement('div');
     comments.className='comments';
 
-    function renderComments(list){
-      comments.innerHTML='';
-      list.forEach(c=>{
-        const d=document.createElement('div');
-        d.innerText=c;
-        comments.appendChild(d);
-      });
-    }
+    commentsList.forEach(c=>{
+      const d=document.createElement('div');
+      d.innerText=c;
+      comments.appendChild(d);
+    });
 
-    renderComments(commentsList);
+    const input=document.createElement('input');
+    input.placeholder='Add comment...';
 
-    input.addEventListener('keypress', async (e)=>{
+    input.addEventListener('keypress', async e=>{
       if(e.key==='Enter' && input.value.trim()){
-        const text = username + ': ' + input.value;
+        const text=username+': '+input.value;
         commentsList.push(text);
         await supabaseClient.from(TABLE).update({comments:commentsList}).eq('id',file.id);
         input.value='';
       }
     });
 
-    actions.appendChild(likeBtn);
-    actions.appendChild(input);
-    actions.appendChild(comments);
+    left.appendChild(user);
+    left.appendChild(comments);
+    left.appendChild(input);
+
+    const right=document.createElement('div');
+    right.className='right';
+
+    const like=document.createElement('div');
+    like.className='icon';
+    like.innerHTML='❤️ <span class="like-count">'+likeCount+'</span>';
+
+    like.onclick=async()=>{
+      if(users.includes(username)) return;
+      likeCount++;
+      users.push(username);
+      await supabaseClient.from(TABLE).update({likes:likeCount, users}).eq('id',file.id);
+    };
+
+    media.ondblclick=()=>like.click();
+
+    right.appendChild(like);
+
+    overlay.appendChild(left);
+    overlay.appendChild(right);
 
     card.appendChild(media);
-    card.appendChild(actions);
+    card.appendChild(overlay);
+
     gallery.appendChild(card);
   }
 }
